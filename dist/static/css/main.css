@@ -1,0 +1,14 @@
+.box1 {
+    width: 100px;
+    height: 100px;
+    background-image: url(../../static/images/edbdb7bcdc.png);
+    background-size: cover;
+}
+.box2 {
+  width: 100px;
+  height: 100px;
+  background-image: url(../../static/images/edbdb7bcdc.png);
+  background-size: cover;
+}
+
+.box3{width:100px;height:100px;background-image:url(../../static/images/edbdb7bcdc.png);background-size:cover}
