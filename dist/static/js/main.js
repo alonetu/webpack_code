@@ -1,1 +1,2 @@
-!function(){"use strict";console.log(2),console.log([1,2,3,4].reduce(((o,c)=>o+c),0))}();
+!function(){"use strict";console.log(4-2),console.log(function(...o){return o.reduce(((o,n)=>o+n),0)}(1,2,3,4))}();
+//# sourceMappingURL=main.js.map

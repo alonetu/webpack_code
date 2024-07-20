@@ -1,8 +1,12 @@
+const os = require('os');
 const path = require("path"); // nodejs核心模块，专门用来处理路径问题
 const ESLintPlugin = require('eslint-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const TerserWebpackPlugin = require('terser-webpack-plugin')
+
+const threads = os.cpus().length; // cpu核数
 
 // 用来获取处理样式的loader
 function getStyleLoader(pre) {
@@ -41,50 +45,67 @@ module.exports = {
     // 加载器
     module: {
         rules: [
-            // loader的配置
             {
-                test: /\.css$/i, // 只检测.css文件
-                use: getStyleLoader()
-            },
-            {
-                test: /\.less$/i,
-                use: getStyleLoader(),
-            },
-            {
-                test: /\.s[ac]ss$/i,
-                use: getStyleLoader(),
-            },
-            {
-                test: /\.(png|jpe?g|gif|webp|svg)$/,
-                type: 'asset',
-                parser: {
-                    dataUrlCondition: {
-                        // 小于10kb的图片转base64
-                        // 优点：减少请求次数 缺点：体积会变大
-                        maxSize: 10 * 1024 // 10kb
-                    }
-                },
-                generator: {
-                    // 输出文件名称 [hash]: 文件名对应的唯一值 hash值取前10位 [ext]: 文件扩展名 [query]: 文件上的参数
-                    filename: 'static/images/[hash:10][ext][query]'
-                }
-            },
-            {
-                test: /\.(ttf|woff2?|map3|map4|avi)$/,
-                type: 'asset/resource',
-                generator: {
-                    // 输出文件名称 [hash]: 文件名对应的唯一值 hash值取前10位 [ext]: 文件扩展名 [query]: 文件上的参数
-                    filename: 'static/media/[hash:10][ext][query]'
-                }
-            },
-            {
-                test: /\.m?js$/,
-                exclude: /node_modules/, // 排除 node_modules 中的js文件（这些文件不处理）
-                loader: 'babel-loader',
-                // options: { // 这里使用 babel.config.js 中的配置
-                //     presets: ['@babel/preset-env'],
-                // },
-            },
+                oneOf: [
+                    // loader的配置
+                    {
+                        test: /\.css$/i, // 只检测.css文件
+                        use: getStyleLoader()
+                    },
+                    {
+                        test: /\.less$/i,
+                        use: getStyleLoader(),
+                    },
+                    {
+                        test: /\.s[ac]ss$/i,
+                        use: getStyleLoader(),
+                    },
+                    {
+                        test: /\.(png|jpe?g|gif|webp|svg)$/,
+                        type: 'asset',
+                        parser: {
+                            dataUrlCondition: {
+                                // 小于10kb的图片转base64
+                                // 优点：减少请求次数 缺点：体积会变大
+                                maxSize: 10 * 1024 // 10kb
+                            }
+                        },
+                        generator: {
+                            // 输出文件名称 [hash]: 文件名对应的唯一值 hash值取前10位 [ext]: 文件扩展名 [query]: 文件上的参数
+                            filename: 'static/images/[hash:10][ext][query]'
+                        }
+                    },
+                    {
+                        test: /\.(ttf|woff2?|map3|map4|avi)$/,
+                        type: 'asset/resource',
+                        generator: {
+                            // 输出文件名称 [hash]: 文件名对应的唯一值 hash值取前10位 [ext]: 文件扩展名 [query]: 文件上的参数
+                            filename: 'static/media/[hash:10][ext][query]'
+                        }
+                    },
+                    {
+                        test: /\.m?js$/,
+                        // exclude: /node_modules/, // 排除 node_modules 中的js文件（这些文件不处理）
+                        include: path.resolve(__dirname, '../src'), // 只处理src下的文件，其他文件不处理
+                        use: [
+                            {
+                                loader: 'thread-loader', // 开启多进程
+                                options: {
+                                    works: threads, // 进程数量
+                                }
+                            },
+                            {
+                                loader: 'babel-loader',
+                                options: { // 这里使用 babel.config.js 中的配置
+                                    // presets: ['@babel/preset-env'],
+                                    cacheDirectory: true, // 开启babel缓存
+                                    cacheCompression: false, // 关闭缓存文件压缩
+                                },
+                            }
+                        ]
+                    },
+                ]
+            }
         ],
     },
     // 插件
@@ -93,6 +114,13 @@ module.exports = {
         new ESLintPlugin({
             // 检测哪些文件
             context: path.resolve(__dirname, "../src"),
+            exclude: "node_modules", // 默认值
+            cache: true, // 开启缓存
+            cacheLocation: path.resolve(
+                __dirname,
+                "../node_modules/.cache/eslintcache"
+            ),
+            threads, // 开启多进程和设置进程数量
         }),
         new HtmlWebpackPlugin({
             // 模版，以public/index.html文件创建新的html文件
@@ -102,8 +130,24 @@ module.exports = {
         new MiniCssExtractPlugin({
             filename: 'static/css/main.css',
         }),
-        new CssMinimizerPlugin(),
+        // new CssMinimizerPlugin(),
+        // new TerserWebpackPlugin({
+        //     parallel: threads // 开启多进程和设置进程数量
+        // }),
     ],
+    // 压缩的操作配置
+    optimization: {
+        minimizer: [
+            // 压缩css
+            new CssMinimizerPlugin(),
+            // 压缩js
+            new TerserWebpackPlugin({
+                parallel: threads // 开启多进程和设置进程数量
+            }),
+        ]
+    },
     // 模式
     mode: "production",
+    // source-map 有行和列的映射
+    devtool: "source-map"
 }; 
